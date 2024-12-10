@@ -21,7 +21,7 @@ class CustomImageDataset(Dataset):
 
         def get_image_cache(idx):
             img_path = self.data.iloc[idx, 0]
-            img_path = img_path.replace("../Data", "D:\DATA\해충분류")
+            # img_path = img_path.replace("../Data", "D:\DATA\해충분류")
 
 
             if img_path in self.cache_image:
@@ -34,17 +34,23 @@ class CustomImageDataset(Dataset):
 
                 image = cv2.cvtColor(image, cv2.IMREAD_COLOR)
 
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
-                image /= 255.
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.uint8)
+                image = image.astype(np.float32) / 255.0
+                # print(image.dtype, image.min(), image.max())
 
                 if self.transforms is not None:
                     image = self.transforms(image=image)['image']
 
                 self.cache_image[img_path] = torch.as_tensor(image, dtype=torch.float32)
+
                 return img_path, self.cache_image[img_path]
 
         img_path, image = get_image_cache(idx)
         label = self.data.iloc[idx, 1]
+        # if img_path in self.cache_image:
+        #     print(f"cache_image hit for: {img_path}")
+        # else:
+        #     print(f"cache_image miss for: {img_path}. Adding to cache_image.")
 
         return {'image': image, 'label': label, 'path': img_path}
 
