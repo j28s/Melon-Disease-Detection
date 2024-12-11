@@ -25,11 +25,19 @@ os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-class InsectModel(nn.Module):
+class DiseaseModel(nn.Module):
     def __init__(self,num_classes):
-        super(InsectModel, self).__init__()
+        super(DiseaseModel, self).__init__()
         self.num_classes = num_classes
         self.model = timm.create_model('vit_base_patch16_224',pretrained=True,num_classes=num_classes)
+    def forward(self, image):
+        return self.model(image)
+
+class DiseaseModel3(nn.Module):
+    def __init__(self,num_classes):
+        super(DiseaseModel3, self).__init__()
+        self.num_classes = num_classes
+        self.model = timm.create_model('vit_base_patch16_224',pretrained=True,num_classes=three_num_classes)
     def forward(self, image):
         return self.model(image)
 
@@ -71,9 +79,13 @@ class CustomConvNet(nn.Module):
             nn.AdaptiveAvgPool2d((1, 1)))
 
 num_classes = 5
+three_num_classes = 3
 
-vit_model = InsectModel(num_classes)
-vit_model.load_state_dict(torch.load("./vit-learn_21.pth"))
+vit_model = DiseaseModel(num_classes)
+vit_model.load_state_dict(torch.load("./vit-learn_47.pth"))
+
+vit_model3 = DiseaseModel3(three_num_classes)
+vit_model3.load_state_dict(torch.load("./vit-17.pth"))
 
 cnn_model = CustomConvNet(num_classes)
 cnn_model.load_state_dict(torch.load('cnn_45.pth'))
@@ -85,8 +97,15 @@ input_transform = A.Compose([
 
 
 def image_analysis(image, model):
-    LABELS = ["정상", "노균병", "노균병 유사", "흰가루병 유사", "흰가루병 유사"]
+    LABELS = ["정상", "노균병", "노균병 유사", "흰가루병", "흰가루병 유사"]
+    LABELS3 = ["정상", "노균병", "흰가루병"]
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # 모델에 따라 사용할 라벨 선택
+    if hasattr(model, "name") and model.name == "vit3":
+        labels_to_use = LABELS3
+    else:
+        labels_to_use = LABELS
 
     # 이미지 전처리
     image = cv2.cvtColor(image, cv2.IMREAD_COLOR)
@@ -101,7 +120,7 @@ def image_analysis(image, model):
         pred = model(image).softmax(1)[0].cpu().numpy()
 
     # 결과 반환
-    return {LABELS[i]: float(pred[i]) for i in range(len(LABELS))}
+    return {labels_to_use[i]: float(pred[i]) for i in range(len(labels_to_use))}
 
 def get_model(model_name):
     if model_name == "ViT":
@@ -112,7 +131,7 @@ def get_model(model_name):
 # Gradio 인터페이스
 demo = gr.Interface(
     fn=lambda image, model_name: image_analysis(image, get_model(model_name)),
-    inputs=["image",  gr.Radio(['ViT', "CNN"])],
+    inputs=["image",  gr.Radio(['ViT3','ViT', "CNN"])],
     outputs="label"
 )
 
